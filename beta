@@ -2,62 +2,76 @@ from tkinter import ttk, messagebox
 from typing import Optional, Tuple, Union
 from tkcalendar import DateEntry
 import customtkinter
-from customtkinter import CTk, CTkLabel, CTkButton, CTkEntry, CTkComboBox,CTkFrame
+from customtkinter import CTk, CTkLabel, CTkButton, CTkEntry, CTkComboBox, CTkFrame
 from tkinter import *
-import mysql.connector
+from PIL import Image,ImageTk
 import tkinter as tk
 import pandas as pd
 from openpyxl import Workbook
+import sqlite3
 
-bd = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="",
-    database="productos",
-    buffered=True
-)
+bd = sqlite3.connect("productos_2.bd")
+bd.execute("""CREATE TABLE IF NOT EXISTS productos (
+                    numeroop INTEGER PRIMARY KEY AUTOINCREMENT,
+                    usuario VARCHAR(255),
+                    contraseña VARCHAR(255),
+                    producto VARCHAR(255),
+                    fecha VARCHAR(255),
+                    operacion VARCHAR(255),
+                    entradas INT,
+                    salidas INT,
+                    existencias INT,
+                    costounitario FLOAT,
+                    costopromedio FLOAT,
+                    debe FLOAT,
+                    haber FLOAT,
+                    saldo FLOAT
+                )""")
 
 T = 0
+
 
 class VentanaPrincipal(CTk):
     def __init__(self):
         super().__init__()
-        
+
         def volver():
             self.withdraw()
             lg.deiconify()
 
         self.title("Ejemplo de ComboBox y Treeview")
-        self.geometry("875x380")
-        self.resizable(0,0)
+        self.geometry("1200x570")
+        self.resizable(0, 480)
         self.ventana_abierta = False
-        
-        self.frame_top = CTkFrame(self, fg_color="DeepSkyBlue4", border_color="DeepSkyBlue4",width=27, height=50)
+
+        self.frame_top = CTkFrame(self, width=27, height=50)
         self.frame_top.pack(side=tk.TOP, fill=tk.BOTH)
-        
+
         opciones = ["INICIO", "COMPRA", "COSTO DE VENTAS", "DEVOLUCION S.C.", "DEVOLUCION S.V."]
         self.combobox = CTkComboBox(self.frame_top, values=opciones, state="readonly")
-        self.combobox.place(x=10, y=10)
+        self.combobox.place(x=25, y=10)
+        self.label = CTkLabel(self.frame_top, text="OPERACION A ELEGIR ")
+        self.label.place(x=10, y=10)
 
         self.btn_abrir_ventana = CTkButton(self.frame_top, text="ABRIR VENTANA", command=self.abrir_ventana)
-        self.btn_abrir_ventana.place(x=230, y=10)
+        self.btn_abrir_ventana.place(x=450, y=10)
 
-        self.btn_select_theme = CTkButton(self.frame_top, text="CAMBIAR COLOR DEL TEMA", command=self.Cambiar_tema)
-        self.btn_select_theme.place(x=450, y=10)
+        self.btn_select_theme = CTkButton(self.frame_top, text="ELIMINAR", command=self.eliminar_renglon,fg_color=("#DB3E39","#821D1A"))
+        self.btn_select_theme.place(x=600, y=10)
 
-        self.btn_excel = CTkButton(self.frame_top, text="DESCARGAR EXCEL", command=self.excel)
-        self.btn_excel.place(x=690, y=10)
-        
+        self.btn_excel = CTkButton(self.frame_top, text="DESCARGAR EXCEL", command=self.excel,bg_color="limegreen", fg_color=("#32CD32"))
+        self.btn_excel.place(x=1000, y=10)
+
         self.treeview = ttk.Treeview(self, columns=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), show="headings")
         self.treeview.pack(pady=50)
-        
+
         self.treeview.column(0, width=25, stretch=False)
-        self.treeview.column(1, width=160)
-        self.treeview.column(2, width=150)
+        self.treeview.column(1, width=100)
+        self.treeview.column(2, width=100)
         self.treeview.column(3, width=75)
         self.treeview.column(4, width=75)
         self.treeview.column(5, width=100)
-        self.treeview.column(6, width=130)
+        self.treeview.column(6, width=100)
         self.treeview.column(7, width=135)
         self.treeview.column(8, width=75)
         self.treeview.column(9, width=75)
@@ -76,37 +90,35 @@ class VentanaPrincipal(CTk):
         self.treeview.heading(10, text="SALDO")
 
         self.actualizar_treeview()
-        
-        self.frame_bottom = CTkFrame(self, fg_color="DeepSkyBlue4", border_color="DeepSkyBlue4",width=47, height=80)
+
+        self.frame_bottom = CTkFrame(self,width=47, height=80)
         self.frame_bottom.pack(side=tk.BOTTOM, fill=tk.BOTH)
-        
-        self.btn_eliminar = CTkButton(self.frame_bottom, text="ELIMINAR", command=self.eliminar_renglon)
-        self.btn_eliminar.place(x=175, y=20)
-        
-        self.btn_regresar = CTkButton(self.frame_bottom,text="REGRESAR",command=volver)
-        self.btn_regresar.place(x=575,y=20)
 
+        self.btn_eliminar = CTkButton(self.frame_bottom, text="COLOR DEL TEMA", command=self.Cambiar_tema)
+        self.btn_eliminar.place(x=450, y=15)
 
+        self.btn_regresar = CTkButton(self.frame_bottom, text="SALIR", command=volver,fg_color=("#DB3E39","#821D1A"))
+        self.btn_regresar.place(x=600, y=15)
 
     def actualizar_treeview(self):
         self.treeview.delete(*self.treeview.get_children())
-
-        seleccionar = "select * from productos where usuario = %s and contraseña = %s and producto = %s"
-        datos=(usuario,contraseña,Product_entry.get())
+        
+        seleccionar = "SELECT * FROM productos WHERE usuario = ? AND contraseña = ? AND producto = ?"
+        datos = (usuario, contraseña, Product_entry.get())
         ta = bd.cursor()
-        ta.execute(seleccionar,datos,)
+        ta.execute(seleccionar, datos)
         resultado = ta.fetchall()
 
         for materias in resultado:
             if not isinstance(materias, tuple):
                 continue
-            identificador = f"{materias[0]}_{materias[1]}"
+            identificador = f"{materias[0]}_{materias[1]}_{len(self.treeview.get_children())}"
             self.treeview.insert(parent='', index='end', iid=identificador, values=(
-                materias[0],materias[4], materias[5], materias[6], materias[7], materias[8], materias[9], materias[10], materias[11],
-                materias[12], materias[13]), tags="CustomCell")
+                materias[0], materias[4], materias[5], materias[6], materias[7], materias[8], materias[9], materias[10],
+                materias[11], materias[12], materias[13]), tags="CustomCell")
+
 
         ta.close()
-    
 
     def abrir_ventana(self):
         if self.ventana_abierta:
@@ -140,6 +152,8 @@ class VentanaPrincipal(CTk):
             ventana_opcion5.protocol("WM_DELETE_WINDOW",
                                      lambda: [ventana_opcion5.destroy(), setattr(self, 'ventana_abierta', False)])
             self.ventana_abierta = True
+        elif seleccion == "":
+            messagebox.showerror("ERROR","SELECCIONA UNA OPERACION")
 
     def eliminar_renglon(self):
         selected_item = self.treeview.selection()
@@ -158,7 +172,7 @@ class VentanaPrincipal(CTk):
         values = self.treeview.item(selected_item)["values"]
         numero_operacion = values[0]
 
-        eliminar_query = "DELETE FROM productos WHERE numeroop = %s"
+        eliminar_query = "DELETE FROM productos WHERE numeroop = ?"
         eliminar_data = (numero_operacion,)
         cursor = bd.cursor()
         cursor.execute(eliminar_query, eliminar_data)
@@ -168,7 +182,6 @@ class VentanaPrincipal(CTk):
         self.treeview.delete(selected_item)
         messagebox.showinfo("Eliminado", "El renglón ha sido eliminado de la base de datos.")
 
-
     def Cambiar_tema(self):
         global T
         T = T + 1
@@ -176,7 +189,7 @@ class VentanaPrincipal(CTk):
             customtkinter.set_appearance_mode("light")
         else:
             customtkinter.set_appearance_mode("Dark")
-            
+
     def excel(self):
         datos = pd.DataFrame(columns=[
             "ID", "Fecha de operacion", "Tipo de Operacion", "Entradas", "Salidas",
@@ -189,89 +202,129 @@ class VentanaPrincipal(CTk):
         hoja1 = workbook.active
 
         columnas = ["ID", "Fecha de operacion", "Tipo de Operacion", "Entradas", "Salidas",
-                "Existencias", "Costo Unitario", "Costo Promedio", "Debe", "Haber", "Saldo"]
+                    "Existencias", "Costo Unitario", "Costo Promedio", "Debe", "Haber", "Saldo"]
         hoja1.append(columnas)
 
         for _, row in datos.iterrows():
             hoja1.append(row.tolist())
-        ci=messagebox.askyesno("Renombre excel","Esta seguro de querer generar un otro excel\ntenga en cuenta que si no se modifica el\n nombre de uno antes generado, el excel se\nsobre escribira ")
+        ci = messagebox.askyesno("Renombre excel",
+                                 "Esta seguro de querer generar un otro excel\ntenga en cuenta que si no se modifica el\n nombre de uno antes generado, el excel se\nsobre escribira ")
         if ci:
-            workbook.save(usuario+"_promedios_"+Product_entry.get()+"_.xlsx")
+            workbook.save(usuario + "_promedios_" + Product_entry.get() + "_.xlsx")
 
             messagebox.showinfo("Exportar a Excel", "Los datos se han exportado exitosamente a un archivo Excel.")
         else:
             return
-        
-class VentanaRegistro(CTk,Toplevel):
+
+
+class VentanaRegistro(CTk, Toplevel):
     def __init__(self):
         super().__init__()
+
         def volver():
             self.withdraw()
             lg.deiconify()
+
         def registro_():
 
             usuario = self.entry_usuario.get()
             contraseña = self.entry_contraseña.get()
 
-            seleccionar = "SELECT * FROM productos WHERE usuario = %s"
+            if not usuario or not contraseña:
+                messagebox.showinfo(message="Usuario o contraseña no pueden estar vacíos")
+                return
+
+            seleccionar = "SELECT * FROM productos WHERE usuario = ?"
             ta = bd.cursor()
             ta.execute(seleccionar, (usuario,))
             resultado = ta.fetchone()
-            
+
             if resultado:
                 messagebox.showinfo(title="Duplicado", message="El usuario que intenta registrar ya existe")
             else:
                 registrar = bd.cursor()
-                regist = "INSERT INTO productos (usuario, contraseña, producto) VALUES (%s, %s, %s)"
-                for x in range (1,3):
-                    rar = (usuario, contraseña,"Producto "+str(x))
+                regist = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (?, ?, ?, ' ', ' ', 0, 0, 0, 0, 0, 0, 0, 0)"
+                for x in range(1, 3):
+                    rar = (usuario, contraseña, "Producto " + str(x))
                     registrar.execute(regist, rar)
                 bd.commit()
                 messagebox.showinfo(title="Registro exitoso", message="El usuario ha sido registrado correctamente")
                 volver()
-            ta.close()
-            
+                ta.close()
+
         lg.withdraw()
-        
+
         self.title("Registro")
-        self.geometry('700x500')
-        self.resizable(0,0)
+        self.config(bg="DeepSkyBlue4")
+        self.geometry('400x500')
+        self.resizable(0, 0)
         
-        self.frame = CTkFrame(self, fg_color="DeepSkyBlue4", border_color="DeepSkyBlue4",width=327, height=550)
-        self.frame.pack(side=tk.RIGHT, fill=tk.BOTH)
-        
-        self.label = CTkLabel(self, text="REGISTRO",text_color="white", font=('Arial', 30, 'bold', ))
-        self.label.pack(padx=60,pady=10)
-        
-        self.marco = LabelFrame(self.frame, text="INGRESE SUS DATOS", bg="DeepSkyBlue4",font=("Comic Sans", 15, "bold"))
+        self.label = CTkLabel(self, text="REGISTRO", text_color="white", font=('Arial', 30, 'bold',),bg_color="DeepSkyBlue4")
+        self.label.pack(padx=60, pady=10)
+    
+        self.marco = LabelFrame(self, text="INGRESE SUS DATOS", bg="DeepSkyBlue4",
+                                font=("Comic Sans", 15, "bold"))
         self.marco.config(padx=30, pady=10, bd=5)
         self.marco.pack()
+
+        #self.img_ = Image.open(r"C:\Users\Braul\python\l\HD-wallpaper-goldmoney-gold-shiny-coins.jpg")
+        #self.resized_img = self.img_.resize((500, 675))
+        #self.image = ImageTk.PhotoImage(self.resized_img)
         
-        self.label_usuario=CTkLabel(self.marco,text="USUARIO",text_color="BLACK")
-        self.label_usuario.grid(row=1,column=1,pady=4)
+        #self.label_img = tk.Label(self, image=self.image)
+        #self.label_img.image = self.image
+        #self.label_img.place(x=0, y=0)
         
-        self.entry_usuario=CTkEntry(self.marco,text_color="white")
-        self.entry_usuario.grid(row=1,column=2,pady=25)
-        
-        self.label_usuario=CTkLabel(self.marco,text="CONTRASEÑA",text_color="BLACK")
-        self.label_usuario.grid(row=2,column=1,pady=4)
-        
-        self.entry_contraseña=CTkEntry(self.marco,text_color="white")
-        self.entry_contraseña.grid(row=2,column=2,pady=7)
-        
-        self.but_on=CTkButton(self.marco,text="REGISTRAR",command=registro_)
+        self.label_usuario = CTkLabel(self.marco, text="N° DE EMPLEADO", text_color="BLACK")
+        self.label_usuario.grid(row=1, column=1, pady=4)
+
+        vcmd = (self.register(self.validate_username), '%P')
+        self.entry_usuario = CTkEntry(self.marco, text_color="BLACK", validate='key', validatecommand=vcmd)
+        self.entry_usuario.grid(row=1, column=2, pady=25)
+
+        self.label_usuario = CTkLabel(self.marco, text="CONTRASEÑA", text_color="BLACK")
+        self.label_usuario.grid(row=2, column=1, pady=4)
+
+        vcmd = (self.register(self.validate_password), '%P')
+        self.entry_contraseña = CTkEntry(self.marco, text_color="BLACK", validate='key', validatecommand=vcmd)
+        self.entry_contraseña.grid(row=2, column=2, pady=7)
+
+        self.but_on = CTkButton(self.marco, text="REGISTRAR", command=registro_)
         self.but_on.grid(row=3, column=1, pady=55)
-        
-        self.button=CTkButton(self.marco,text="REGRESAR",command=volver)
+
+        self.button = CTkButton(self.marco, text="REGRESAR", command=volver)
         self.button.grid(row=3, column=2, pady=8)
-        
+
         self.mainloop()
 
-class VentanaOpcion1( tk.Toplevel):
+    def validate_username(self, new_text):
+        if not new_text:
+            return True
+
+        if new_text.isdigit() and len(new_text) <= 15:
+            return True
+        return False
+
+
+
+    def validate_password(self, new_text):
+        if not new_text:
+            return True
+        try:
+            if int(new_text) >= 0 and len(new_text) <= 8:
+                return True
+            else:
+                return False
+        except ValueError:
+            return False
+
+
+
+class VentanaOpcion1(tk.Toplevel):
     def __init__(self, master):
         self.master = master
         super().__init__(master)
-        
+
         self.title("Opción 1")
         self.ventana_abierta = False
 
@@ -321,9 +374,10 @@ class VentanaOpcion1( tk.Toplevel):
             col6 = float(col9) / float(col4)
         # Agregar datos al Treeview en la ventana principal
         ta = bd.cursor()
-        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        llenar = (usuario,contraseña,Product_entry.get(),formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
-        ta.execute(datos, llenar, )
+        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        llenar = (usuario, contraseña, Product_entry.get(), formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
+        ta.execute(datos, llenar)
+
         self.master.actualizar_treeview()
         bd.commit()
         ta.close()
@@ -344,7 +398,7 @@ class VentanaOpcion1( tk.Toplevel):
 
 class VentanaOpcion2(tk.Toplevel):
     def __init__(self, master):
-        self.master=master
+        self.master = master
         super().__init__(master)
         self.title("Opción 2")
         self.ventana_abierta = False
@@ -394,15 +448,16 @@ class VentanaOpcion2(tk.Toplevel):
         # Lógica para obtener col5
         if col4 != 0:
             col6 = float(col9) / float(col4)
-            
+
         ta = bd.cursor()
-        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        llenar = (usuario,contraseña,Product_entry.get(),formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
-        ta.execute(datos, llenar, )
+        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        llenar = (usuario, contraseña, Product_entry.get(), formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
+        ta.execute(datos, llenar)
+
         self.master.actualizar_treeview()
         bd.commit()
         ta.close()
-        
+
         self.master.ventana_abierta = False
         self.destroy()
 
@@ -420,7 +475,7 @@ class VentanaOpcion2(tk.Toplevel):
 
 class VentanaOpcion3(tk.Toplevel):
     def __init__(self, master):
-        self.master=master
+        self.master = master
         super().__init__(master)
         self.title("Opción 3")
         self.ventana_abierta = False
@@ -473,13 +528,15 @@ class VentanaOpcion3(tk.Toplevel):
         self.master.ventana_abierta = False
 
         ta = bd.cursor()
-        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        llenar = (usuario,contraseña,Product_entry.get(),formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
-        ta.execute(datos, llenar, )
+
+        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        llenar = (usuario, contraseña, Product_entry.get(), formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
+
+        ta.execute(datos, llenar)
         self.master.actualizar_treeview()
         bd.commit()
         ta.close()
-        
+
         self.destroy()
 
     def validate_entry(self, new_text):
@@ -496,7 +553,7 @@ class VentanaOpcion3(tk.Toplevel):
 
 class VentanaOpcion4(tk.Toplevel):
     def __init__(self, master):
-        self.master=master
+        self.master = master
         super().__init__(master)
         self.title("Opción 4")
         self.ventana_abierta = False
@@ -548,13 +605,13 @@ class VentanaOpcion4(tk.Toplevel):
         self.master.ventana_abierta = False
 
         ta = bd.cursor()
-        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        llenar = (usuario,contraseña,Product_entry.get(),formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
-        ta.execute(datos, llenar, )
+        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        llenar = (usuario, contraseña, Product_entry.get(), formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
+        ta.execute(datos, llenar)
         self.master.actualizar_treeview()
         bd.commit()
         ta.close()
-        
+
         self.destroy()
 
     def validate_entry(self, new_text):
@@ -571,7 +628,7 @@ class VentanaOpcion4(tk.Toplevel):
 
 class VentanaOpcion5(tk.Toplevel):
     def __init__(self, master):
-        self.master=master
+        self.master = master
         super().__init__(master)
         self.title("Opción 5")
 
@@ -622,13 +679,14 @@ class VentanaOpcion5(tk.Toplevel):
         self.master.ventana_abierta = False
 
         ta = bd.cursor()
-        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        llenar = (usuario,contraseña,Product_entry.get(),formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
-        ta.execute(datos, llenar, )
+        datos = "INSERT INTO productos (usuario, contraseña, producto, fecha, operacion, entradas, salidas, existencias, costounitario, costopromedio, debe, haber, saldo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        llenar = (usuario, contraseña, Product_entry.get(), formatted_date, col1, col2, col3, col4, col5, col6, col7, col8, col9)
+        ta.execute(datos, llenar)
+
         self.master.actualizar_treeview()
         bd.commit()
         ta.close()
-        
+
         self.destroy()
 
     def validate_entry(self, new_text):
@@ -641,109 +699,139 @@ class VentanaOpcion5(tk.Toplevel):
                 return False
         except ValueError:
             return False
-
 def inicio():
-
     global usuario
     global contraseña
-    
-    usuario=matricula_entry.get()
-    contraseña=password_entry.get()
 
-    seleccionar = "select * from productos where usuario = %s and contraseña = %s and producto = %s"
+    usuario = matricula_entry.get()
+    contraseña = password_entry.get()
+
+
+    if not usuario or not contraseña:
+        messagebox.showinfo(message="Usuario o contraseña no pueden estar vacíos")
+        return
+
+    seleccionar = "select * from productos where usuario = ? and contraseña = ? and producto = ?"
     ta = bd.cursor()
-    ta.execute(seleccionar, (usuario,contraseña,Product_entry.get(),))
+    ta.execute(seleccionar, (usuario, contraseña, Product_entry.get(),))
     resultado = ta.fetchone()
 
     if not resultado:
-        messagebox.showinfo(message="usuario no registrado")
+        messagebox.showinfo(message="Error usuario y/o contraseña")
         return
-    
-    elif resultado[1]==usuario and resultado[2]==contraseña:
+
+    elif resultado[1] == usuario and resultado[2] != contraseña:
+        messagebox.showinfo(message="Contraseña incorrecta")
+        return
+
+    elif resultado[1] == usuario and resultado[2] == contraseña:
         lg.withdraw()
-        a=VentanaPrincipal()
+        a = VentanaPrincipal()
         a.mainloop()
-    ta.close()
+        ta.close()
+
+
 
 def registros():
     VentanaRegistro()
 
-lg=customtkinter.CTk()
+def validate_employee_name(new_text):
+
+    if not new_text:
+        return True
+    if new_text.isdigit() and len(new_text) <= 15:
+        return True
+    return False
+
+def validate_password(new_text):
+        if not new_text:
+            return True
+        try:
+            if int(new_text) >= 0 and len(new_text) <= 8:
+                return True
+            else:
+                return False
+        except ValueError:
+            return False
+
+
+lg = customtkinter.CTk()
 lg.geometry('700x500')
 lg.config(bg="black")
 lg.title("INICIO")
-lg.resizable(False,False)
-#lg.iconbitmap(r"C:\Users\miche\PycharmProjects\PYCHARMich\Contabilidad/tecnologia-financiera.ico")
+lg.resizable(False, False)
+# lg.iconbitmap(r"C:\Users\miche\PycharmProjects\PYCHARMich\Contabilidad/tecnologia-financiera.ico")
 
-#img = Image.open(r"C:\Users\miche\PycharmProjects\PYCHARMich\Contabilidad/FUTURE.png")
-#render = ImageTk.PhotoImage(img)
-#label_imagen = tk.Label(lg, image=render)
-#label_imagen.image = render
-#label_imagen.config(bg="black")
-#label_imagen.place(y=0, x=0)
+img = Image.open(r"C:\Users\Braul\python\l\Future.jpeg")
+resized_img = img.resize((500, 675))
+image = ImageTk.PhotoImage(resized_img)
+label_img = tk.Label(master=lg, image=image, text="")
+label_img.place(y=0, x=0)
 
-#Insertamos una imagen que no es porque le queda una marca de agua horrible
-#img = PhotoImage(file=r"C:\Users\miche\PycharmProjects\PYCHARMich\Contabilidad\FUTURE.png")
-#label_img = customtkinter.CTkLabel(master=lg, image=img,text="")
-#label_img.place(y=0, x=0)
+# Insertamos una imagen que no es porque le queda una marca de agua horrible
+# img = PhotoImage(file=r"C:\Users\miche\PycharmProjects\PYCHARMich\Contabilidad\FUTURE.png")
+# label_img = customtkinter.CTkLabel(master=lg, image=img,text="")
+# label_img.place(y=0, x=0)
 
-#Creamos un frame
-frame = customtkinter.CTkFrame(master=lg, fg_color="DeepSkyBlue4", border_color="DeepSkyBlue4",width=327, height=550)
+# Creamos un frame
+frame = customtkinter.CTkFrame(master=lg, fg_color="DeepSkyBlue4", border_color="DeepSkyBlue4", width=327, height=550)
 frame.pack(side=tk.RIGHT, fill=tk.BOTH)
 
-#Dentro del frame
-label = customtkinter.CTkLabel(master=frame, text="BIENVENIDO",bg_color="DeepSkyBlue4",text_color="black", font=('Arial', 30, 'bold', ))
-label.pack(padx=60,pady=10)
+# Dentro del frame
+label = customtkinter.CTkLabel(master=frame, text="BIENVENIDO", bg_color="DeepSkyBlue4", text_color="black",
+                               font=('Arial', 30, 'bold',))
+label.pack(padx=60, pady=10)
 
-#imagen_registro = Image.open(r"C:\Users\miche\PycharmProjects\PYCHARMich\Contabilidad\LOGO.png")
-#nueva_imagen = imagen_registro.resize((200, 200))
-#render = ImageTk.PhotoImage(nueva_imagen)
-#label_imagen = Label(master=frame, image=render)
-#label_imagen.image = render
-#label_imagen.config(bg="DeepSkyBlue4")
-#label_imagen.pack(pady=10, padx=0, ipadx=0)
 
-marco = LabelFrame(master=frame, text="INICIA SESIÓN", bg="DeepSkyBlue4",font=("Comic Sans", 15, "bold"))
+
+marco = LabelFrame(master=frame, text="INICIA SESIÓN", bg="DeepSkyBlue4", font=("Comic Sans", 15, "bold"))
 marco.config(padx=30, pady=10, bd=5)
 marco.pack()
 
-matricula_label = tk.Label(marco, text="NOMBRE DEL EMPLEADO:",bg="DeepSkyBlue4", font=("Arial", 12, "bold"))
+matricula_label = tk.Label(marco, text="N° DE EMPLEADO:", bg="DeepSkyBlue4", font=("Arial", 12, "bold"))
 matricula_label.grid(row=1, column=1, padx=5, pady=8)
-#vcmd = (marco.register(validate_matricula), '%P') validatecommand=vcmd
-matricula_entry = tk.Entry(marco, validate="key",width=20, font=("Arial", 12))
+
+vcmd = (marco.register(validate_employee_name), '%P')
+matricula_entry = tk.Entry(marco, validate="key", validatecommand=vcmd, width=20, font=("Arial", 12))
 matricula_entry.grid(row=1, column=2, padx=5, pady=8)
 
 password_label = tk.Label(marco, text="CONTRASEÑA:", bg="DeepSkyBlue4", font=("Arial", 12, "bold"))
 password_label.grid(row=2, column=1, padx=5, pady=8)
-#vcmd2 = (marco.register(validate_password), '%P') validatecommand=vcmd2
-password_entry = tk.Entry(marco, show="🐙", validate="key", width=20, font=("Arial", 12))
+
+vcmd1 = (marco.register(validate_password), '%P')
+password_entry = tk.Entry(marco, show="*", validate="key", validatecommand=vcmd1, width=20, font=("Arial", 12))
 password_entry.grid(row=2, column=2, padx=5, pady=8)
 
 Product_label = tk.Label(marco, text="PRODUCTO:", bg="DeepSkyBlue4", font=("Arial", 12, "bold"))
 Product_label.grid(row=3, column=1, padx=5, pady=8)
 
-opciones_=["Producto 1","Producto 2"]
-#vcmd2 = (marco.register(validate_password), '%P') validatecommand=vcmd2
-Product_entry = CTkComboBox(marco, width=150,values=opciones_)
-Product_entry.grid(row=3, column=2,padx=5,pady=8)
+opciones_ = ["Producto 1", "Producto 2"]
+
+Product_entry = CTkComboBox(marco, width=150, values=opciones_)
+Product_entry.grid(row=3, column=2, padx=5, pady=8)
 
 frame_botones = Frame(master=frame)
 frame_botones.config(bg="DeepSkyBlue4")
 frame_botones.pack(pady=10)
 
-#command=self.login
 
-login_button = tk.Button(frame_botones, text="INICIAR SESIÓN", height=2, width=15,bg="cyan3", fg="black", font=("Arial", 12, "bold"),command=inicio)
+
+login_button = tk.Button(frame_botones, text="INICIAR SESIÓN", height=2, width=15, bg="cyan3", fg="black",
+                         font=("Arial", 12, "bold"), command=inicio)
 login_button.grid(row=3, column=1, padx=5, pady=8)
 
-#command=self.register
 
-register_button = tk.Button(frame_botones, text="REGISTRARSE", height=2, width=15,bg="cyan3", fg="black", font=("Arial", 12, "bold"),command=registros)
+
+register_button = tk.Button(frame_botones, text="REGISTRARSE", height=2, width=15, bg="cyan3", fg="black",
+                            font=("Arial", 12, "bold"), command=registros)
 register_button.grid(row=3, column=2, padx=5, pady=8)
 
-usuario=None
-contraseña=None
+usuario = None
+contraseña = None
 
-#NumEmp =customtkinter
-if __name__=="__main__":
+
+
+
+
+if __name__ == "__main__":
     lg.mainloop()
